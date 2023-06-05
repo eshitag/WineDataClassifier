@@ -1,0 +1,57 @@
+import pandas as pd
+import tensorflow as tf
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Load the dataset
+data = pd.read_csv('winequality-red.csv')
+
+# Split features and target
+features = data.drop('quality', axis=1)
+target = data['quality']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+
+# Scale the features using StandardScaler
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Create input functions
+train_input_fn = tf.compat.v1.estimator.inputs.numpy_input_fn(
+    x={"x": X_train_scaled},
+    y=y_train.values,
+    batch_size=32,
+    num_epochs=None,
+    shuffle=True
+)
+
+eval_input_fn = tf.compat.v1.estimator.inputs.numpy_input_fn(
+    x={"x": X_test_scaled},
+    y=y_test.values,
+    num_epochs=1,
+    shuffle=False
+)
+
+# Define the feature columns
+feature_columns = [tf.feature_column.numeric_column("x", shape=[X_train_scaled.shape[1]])]
+
+# Create the DNN Classifier
+estimator = tf.estimator.DNNClassifier(
+    feature_columns=feature_columns,
+    hidden_units=[128, 64],
+    n_classes=10,
+    model_dir='wine_model'
+)
+
+# Train the model
+estimator.train(input_fn=train_input_fn, steps=1000)
+
+# Evaluate the model
+eval_result = estimator.evaluate(input_fn=eval_input_fn)
+
+# Print the evaluation metrics
+print("Evaluation results:")
+for key, value in eval_result.items():
+    print(f"{key}: {value}")
